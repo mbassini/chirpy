@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -29,7 +28,7 @@ func main() {
 	mux.HandleFunc("GET /api/healthz", readinessHandler)
 	mux.HandleFunc("GET /admin/metrics", apiCfg.hitsHandler)
 	mux.HandleFunc("POST /admin/reset", apiCfg.resetHandler)
-	mux.HandleFunc("POST /api/validate_chirp", validateChirpHandler)
+	mux.HandleFunc("POST /api/validate_chirp", handlerValidateChirp)
 
 	log.Printf("Serving files from %s on port: %s\n", rootFilepath, port)
 	log.Fatal(sv.ListenAndServe())
@@ -57,45 +56,4 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 		cfg.fileserverHits.Add(1)
 		next.ServeHTTP(w, r)
 	})
-}
-
-func validateChirpHandler(w http.ResponseWriter, r *http.Request) {
-	type chirpRequest struct {
-		Body string `json:"body"`
-	}
-
-	type errorResponse struct {
-		Error string `json:"error"`
-	}
-
-	type validResponse struct {
-		Valid bool `json:"valid"`
-	}
-
-	respondWithJSON := func(statusCode int, payload any) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(statusCode)
-		data, err := json.Marshal(payload)
-		if err != nil {
-			log.Printf("Error marshalling JSON: %s", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		w.Write(data)
-	}
-
-	var req chirpRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("Error decoding request: %s", err)
-		respondWithJSON(http.StatusInternalServerError, errorResponse{Error: "Something went wrong"})
-		return
-	}
-
-	const maxChirpLength = 140
-	if len(req.Body) > maxChirpLength {
-		respondWithJSON(http.StatusBadRequest, errorResponse{Error: "Chirp too long"})
-		return
-	}
-
-	respondWithJSON(http.StatusOK, validResponse{Valid: true})
 }
