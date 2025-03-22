@@ -1,19 +1,44 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"sync/atomic"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
+	"github.com/mbassini/chirpy/internal/database"
 )
 
 type apiConfig struct {
 	fileserverHits atomic.Int32
+	db             *database.Queries
+}
+
+type User struct {
+	ID        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Email     string    `json:"email"`
 }
 
 func main() {
+	godotenv.Load()
+	dbURL := os.Getenv("DB_URL")
 	rootFilepath := "."
 	port := "8080"
+
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		log.Fatalf("Could not connect to db\nURL: %s\nErr: %s\n", dbURL, err)
+	}
+	defer db.Close()
+	dbQueries := database.New(db)
 
 	mux := http.NewServeMux()
 
@@ -22,13 +47,17 @@ func main() {
 		Handler: mux,
 	}
 
-	apiCfg := apiConfig{fileserverHits: atomic.Int32{}}
+	apiCfg := apiConfig{
+		fileserverHits: atomic.Int32{},
+		db:             dbQueries,
+	}
 
 	mux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(rootFilepath)))))
 	mux.HandleFunc("GET /api/healthz", readinessHandler)
 	mux.HandleFunc("GET /admin/metrics", apiCfg.hitsHandler)
 	mux.HandleFunc("POST /admin/reset", apiCfg.resetHandler)
 	mux.HandleFunc("POST /api/validate_chirp", handlerValidateChirp)
+	mux.HandleFunc("POST /api/users", handlerCreateUser(apiCfg.db))
 
 	log.Printf("Serving files from %s on port: %s\n", rootFilepath, port)
 	log.Fatal(sv.ListenAndServe())
