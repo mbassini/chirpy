@@ -7,6 +7,8 @@ import (
 	"github.com/lib/pq"
 )
 
+const errorUniqueViolation = "23505"
+
 func handlerCreateUser(cfg *apiConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		type createUserRequest struct {
@@ -15,15 +17,15 @@ func handlerCreateUser(cfg *apiConfig) http.HandlerFunc {
 
 		var req createUserRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			respondWithError(w, http.StatusInternalServerError, "Something went wrong", err)
+			respondWithError(w, http.StatusInternalServerError, "something went wrong", err)
 			return
 		}
 
 		user, err := cfg.db.CreateUser(r.Context(), req.Email)
 		if err != nil {
 			if pqErr, ok := err.(*pq.Error); ok {
-				if pqErr.Code == "23505" {
-					respondWithError(w, http.StatusConflict, "Email already in use", err)
+				if pqErr.Code == errorUniqueViolation {
+					respondWithError(w, http.StatusConflict, "email already in use", err)
 					return
 				}
 			}

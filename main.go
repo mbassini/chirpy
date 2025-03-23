@@ -28,6 +28,14 @@ type User struct {
 	Email     string    `json:"email"`
 }
 
+type Chirp struct {
+	ID        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Body      string    `json:"body"`
+	UserID    uuid.UUID `json:"user_id"`
+}
+
 func main() {
 	godotenv.Load()
 	dbURL := os.Getenv("DB_URL")
@@ -61,6 +69,7 @@ func main() {
 	mux.HandleFunc("GET /admin/metrics", apiCfg.hitsHandler)
 	mux.HandleFunc("POST /api/validate_chirp", handlerValidateChirp)
 	mux.HandleFunc("POST /api/users", handlerCreateUser(&apiCfg))
+	mux.HandleFunc("POST /api/chirps", handlerCreateChirp(&apiCfg))
 	mux.HandleFunc("POST /admin/reset", handlerResetUsers(&apiCfg))
 
 	log.Printf("Serving files from %s on port: %s\n", rootFilepath, port)
