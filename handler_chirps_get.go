@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -40,7 +39,7 @@ func (cfg *apiConfig) handlerChirpsGetOne(w http.ResponseWriter, r *http.Request
 	chirp, err := cfg.db.GetChirpByID(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			respondWithError(w, http.StatusNotFound, fmt.Sprintf("No chirp found with id: %s", id), err)
+			respondWithError(w, http.StatusNotFound, "Chirp doesn't exist", err)
 			return
 		}
 		respondWithError(w, http.StatusInternalServerError, "Couldn't get chirp", err)
