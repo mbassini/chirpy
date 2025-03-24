@@ -1,6 +1,9 @@
 package main
 
 import (
+	"database/sql"
+	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -30,13 +33,17 @@ func (cfg *apiConfig) handlerChirpsGetAll(w http.ResponseWriter, r *http.Request
 func (cfg *apiConfig) handlerChirpsGetOne(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(r.PathValue("chirpID"))
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid id", err)
+		respondWithError(w, http.StatusBadRequest, "Invalid chirp id", err)
 		return
 	}
 
 	chirp, err := cfg.db.GetChirpByID(r.Context(), id)
 	if err != nil {
-		respondWithError(w, http.StatusNotFound, "Chirp not found", err)
+		if errors.Is(err, sql.ErrNoRows) {
+			respondWithError(w, http.StatusNotFound, fmt.Sprintf("No chirp found with id: %s", id), err)
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Couldn't get chirp", err)
 		return
 	}
 
